@@ -1,0 +1,23 @@
+identifier: brage
+name: Brage V1.0 Board
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+ram: 768
+flash: 1024
+supported:
+  - adc
+  - can
+  - counter
+  - gpio
+  - spi
+  - usb_device
+  - uart
+  - watchdog
+  - nvs
+  - pwm
+testing:
+  default: true

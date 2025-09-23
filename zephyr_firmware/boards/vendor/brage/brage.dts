@@ -1,0 +1,229 @@
+/*
+ * Copyright (c) 2024
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include <st/u5/stm32u575Xg.dtsi>
+#include <st/u5/stm32u575cgtx-pinctrl.dtsi>
+
+/ {
+	model = "Brage 1.0";
+	compatible = "brage,brage-v1";
+
+	chosen {
+		zephyr,console = &usart2;
+		zephyr,shell-uart = &usart2;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,canbus = &fdcan1;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led_g: led_green {
+			gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+			label = "Green LED";
+		};
+		led_b: led_blue {
+			gpios = <&gpiob 14 GPIO_ACTIVE_HIGH>;
+			label = "Blue LED";
+		};
+		led_tx: led_tx {
+			gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
+			label = "TX LED";
+		};
+		led_rx: led_rx {
+			gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
+			label = "RX LED";
+		};
+	};
+
+
+	/* PA control pins */
+	pa_control {
+		compatible = "gpio-leds";
+		pa_enable: pa_en {
+			gpios = <&gpioc 13 GPIO_ACTIVE_HIGH>;
+			label = "PA Enable";
+		};
+		pa_tx_enable: pa_tx_en {
+			gpios = <&gpioc 14 GPIO_ACTIVE_HIGH>;
+			label = "PA TX Enable";
+		};
+		pa_rx_enable: pa_rx_en {
+			gpios = <&gpioc 15 GPIO_ACTIVE_HIGH>;
+			label = "PA RX Enable";
+		};
+	};
+
+	aliases {
+		led0 = &led_g;
+		led1 = &led_b;
+		led-tx = &led_tx;
+		led-rx = &led_rx;
+		pa-en = &pa_enable;
+		pa-tx-en = &pa_tx_enable;
+		pa-rx-en = &pa_rx_enable;
+		lora0 = &lora_sx1280;
+		therm = &adc1;
+	};
+};
+
+&clk_hsi {
+	status = "okay";
+};
+
+&clk_hse {
+	status = "okay";
+	clock-frequency = <DT_FREQ_M(48)>;
+};
+
+&pll1 {
+	status = "okay";
+	div-m = <3>;
+	mul-n = <10>;
+	div-p = <2>;
+	div-q = <2>;
+	div-r = <1>;
+	clocks = <&clk_hse>;
+};
+
+&rcc {
+	clocks = <&pll1>;
+	clock-frequency = <DT_FREQ_M(160)>;
+	ahb-prescaler = <1>;
+	apb1-prescaler = <1>;
+	apb2-prescaler = <1>;
+	apb3-prescaler = <1>;
+};
+
+/* UART for console and general communication */
+&usart2 {
+	status = "okay";
+	pinctrl-0 = <&usart2_tx_pa2 &usart2_rx_pa3 
+		     &usart2_cts_pa0 &usart2_rts_pa1>;
+	pinctrl-names = "default";
+	current-speed = <115200>;
+	hw-flow-control;
+};
+
+/* SPI1 for SX1280 LoRa Module */
+&spi1 {
+	status = "okay";
+	pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpiob 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	
+	lora_sx1280: sx1280@0 {
+		compatible = "semtech,sx1280";
+		reg = <0>;
+		spi-max-frequency = <DT_FREQ_M(10)>;
+		reset-gpios = <&gpiob 6 GPIO_ACTIVE_LOW>;
+		busy-gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+		dio1-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+		dio2-gpios = <&gpiob 4 GPIO_ACTIVE_HIGH>;
+		dio3-gpios = <&gpiob 5 GPIO_ACTIVE_HIGH>;
+		label = "SX1280";
+	};
+};
+
+/* CAN-FD interface */
+&fdcan1 {
+	status = "okay";
+	pinctrl-0 = <&fdcan1_rx_pb8 &fdcan1_tx_pb9>;
+	pinctrl-names = "default";
+	bus-speed = <500000>;
+	bus-speed-data = <1000000>;
+	sample-point = <875>;
+	sample-point-data = <875>;
+};
+
+/* USB OTG FS */
+&usb_otg_fs {
+	status = "okay";
+	pinctrl-0 = <&usb_otg_fs_dm_pa11 &usb_otg_fs_dp_pa12>;
+	pinctrl-names = "default";
+};
+
+/* ADC1 for temperature sensor (thermistor on PB1) */
+&adc1 {
+	status = "okay";
+	pinctrl-0 = <&adc1_in16_pb1>;
+	pinctrl-names = "default";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	st,adc-clock-source = "ASYNC";
+	st,adc-prescaler = <1>;
+
+	channel@16 {
+		reg = <16>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+	
+	/* Internal temperature sensor */
+	channel@19 {
+		reg = <19>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+};
+
+/* GPIO configurations for standalone pins */
+&gpioa {
+	status = "okay";
+	
+};
+
+&gpiob {
+	status = "okay";
+	
+	
+};
+
+&gpioc {
+	status = "okay";
+};
+
+&gpioh {
+	status = "okay";
+};
+
+/* Flash partitions */
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* Bootloader partition - 64KB */
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 DT_SIZE_K(64)>;
+			read-only;
+		};
+
+		/* Application partition - 448KB */
+		slot0_partition: partition@10000 {
+			label = "image-0";
+			reg = <0x00010000 DT_SIZE_K(448)>;
+		};
+
+		/* Update partition - 448KB */
+		slot1_partition: partition@80000 {
+			label = "image-1";
+			reg = <0x00080000 DT_SIZE_K(448)>;
+		};
+
+		/* Storage partition - 64KB */
+		storage_partition: partition@f0000 {
+			label = "storage";
+			reg = <0x000f0000 DT_SIZE_K(64)>;
+		};
+	};
+};
