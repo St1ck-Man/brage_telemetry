@@ -11,6 +11,7 @@
 
 /*RF control*/
 #define TX_EN 0 // PB7
+#define RX_EN 1 //
 
 SX1280 radio = new Module(SX_CS, SX_DIO1, SX_RESET, SX_BUSY);
 
