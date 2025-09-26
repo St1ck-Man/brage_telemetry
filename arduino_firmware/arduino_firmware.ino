@@ -1,104 +1,98 @@
+#include "pin_config.h"
 #include <RadioLib.h>
 
-#define LED_TX LED_GREEN
-#define LED_RX LED_BLUE
-
-/*sx1280 control pins*/ // bottom right on the board
-#define SX_DIO1 8 // PA9
-#define SX_RESET 9 // PB3
-#define SX_CS 10 // SPI CS / PA15
-#define SX_BUSY 7 // not connected, LAMBDA80 doesn't have BUSY pin
-
-/*RF control*/
-#define TX_EN 0 // PB7
-#define RX_EN 1 //
-
-SX1280 radio = new Module(SX_CS, SX_DIO1, SX_RESET, SX_BUSY);
-
-int transmissionState = RADIOLIB_ERR_NONE;
-
-volatile bool transmittedFlag = false;
-
-void setFlag(void) {
-  transmittedFlag = true;
-}
+// Global state variables
+volatile bool isTransmitting = false;
+bool lastButtonState = HIGH;
+bool currentButtonState = HIGH;
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 50;  // 50ms debounce
+uint32_t packetCounter = 0;  // For unique packet identification
 
 void setup() {
-  Serial.begin(9600);
-
-  // initialize SX1280 with default settings
-  Serial.print(F("[SX1280] Initializing ... "));
-  int state = radio.begin();
-  if (state == RADIOLIB_ERR_NONE) {
-    Serial.println(F("success!"));
-  } else {
-    Serial.print(F("failed, code "));
-    Serial.println(state);
-    while (true) { delay(10); }
-  }
-
-  pinMode(TX_EN, OUTPUT);
-  digitalWrite(TX_EN, HIGH);
-
-  // set the function that will be called
-  // when packet transmission is finished
-  radio.setPacketSentAction(setFlag);
-
-  // start transmitting the first packet
-  Serial.print(F("[SX1280] Sending first packet ... "));
-
-  // you can transmit C-string or Arduino string up to
-  // 256 characters long
-  transmissionState = radio.startTransmit("Hello World!");
-
-  // you can also transmit byte array up to 256 bytes long
-  /*
-    byte byteArr[] = {0x01, 0x23, 0x45, 0x67,
-                      0x89, 0xAB, 0xCD, 0xEF};
-    state = radio.startTransmit(byteArr, 8);
-  */
+    Serial.begin(115200);
+    
+    // Initialize button pin
+    pinMode(USER_BTN, INPUT_PULLUP);
+    
+    // Initialize RF switch pins (add these pin definitions to your constants)
+    pinMode(RX_EN, OUTPUT);
+    pinMode(TX_EN, OUTPUT);
+    digitalWrite(RX_EN, LOW);
+    digitalWrite(TX_EN, LOW);
+    
+    // Initialize radio
+    init_radio();
+    
+    Serial.println(F("=== Radio System Ready ==="));
+    Serial.println(F("Press USER_BTN to send a packet"));
+    Serial.println(F("Listening for incoming packets..."));
+    Serial.println(F(""));
 }
 
-// counter to keep track of transmitted packets
-int count = 0;
-
 void loop() {
-  // check if the previous transmission finished
-  if(transmittedFlag) {
-    // reset flag
-    transmittedFlag = false;
+    // Handle radio operations
+    handle_received_packet();
+    handle_transmission_complete();
+    
+    // Handle user input
+    handle_button_press();
+    
+    // Add small delay to prevent overwhelming the CPU
+    delay(1);
+}
 
-    if (transmissionState == RADIOLIB_ERR_NONE) {
-      // packet was successfully sent
-      Serial.println(F("transmission finished!"));
 
-    } else {
-      Serial.print(F("failed, code "));
-      Serial.println(transmissionState);
-
+void handle_button_press() {
+    // Read the button state
+    bool reading = digitalRead(USER_BTN);
+    
+    // Check if button state changed (for debouncing)
+    if (reading != lastButtonState) {
+        lastDebounceTime = millis();
     }
+    
+    // If enough time has passed since last change
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+        // If button state has actually changed
+        if (reading != currentButtonState) {
+            currentButtonState = reading;
+            
+            // Button was pressed (HIGH to LOW transition for active LOW button)
+            if (currentButtonState == LOW) {
+                send_test_packet();
+            }
+        }
+    }
+    
+    lastButtonState = reading;
+}
 
-    // clean up after transmission is finished
-    // this will ensure transmitter is disabled,
-    // RF switch is powered down etc.
-    radio.finishTransmit();
-
-    // wait a second before transmitting again
-    delay(1000);
-
-    // send another one
-    Serial.print(F("[SX1280] Sending another packet ... "));
-
-    // you can transmit C-string or Arduino string up to
-    // 256 characters long
-    String str = "Hello World! #" + String(count++);
-    transmissionState = radio.startTransmit(str);
-
-    // you can also transmit byte array up to 256 bytes long
-    /*
-      byte byteArr[] = {0x01, 0x23, 0x45, 0x67,
-                        0x89, 0xAB, 0xCD, 0xEF};
-      transmissionState = radio.startTransmit(byteArr, 8);
-    */
-  }
+void send_test_packet() {
+    // Create a test packet with counter and some data
+    uint8_t packet[8];
+    
+    // Add packet counter (4 bytes)
+    packet[0] = (packetCounter >> 24) & 0xFF;
+    packet[1] = (packetCounter >> 16) & 0xFF;
+    packet[2] = (packetCounter >> 8) & 0xFF;
+    packet[3] = packetCounter & 0xFF;
+    
+    // Add some test data
+    packet[4] = 0xAA;
+    packet[5] = 0xBB;
+    packet[6] = 0xCC;
+    packet[7] = 0xDD;
+    
+    Serial.println(F(""));
+    Serial.print(F("[USER] Button pressed - sending packet #"));
+    Serial.println(packetCounter);
+    
+    int state = start_transmit(packet, sizeof(packet));
+    if (state == RADIOLIB_ERR_NONE) {
+        packetCounter++; // Only increment if transmission started successfully
+    } else {
+        Serial.print(F("[USER] Failed to start transmission, code "));
+        Serial.println(state);
+    }
 }
