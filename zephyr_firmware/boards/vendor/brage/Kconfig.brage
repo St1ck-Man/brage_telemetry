@@ -1,7 +1,0 @@
-# Copyright (c) 2024
-# SPDX-License-Identifier: Apache-2.0
-
-config BOARD_BRAGE
-	bool "Brage 1.0"
-	depends on SOC_STM32U575XX
-	select SOC_STM32U575CG
