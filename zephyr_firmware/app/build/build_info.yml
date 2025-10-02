@@ -1,0 +1,58 @@
+cmake:
+  application:
+    configuration-dir: '/home/yeet/Projects/brage_telemetry/zephyr_firmware/app'
+    source-dir: '/home/yeet/Projects/brage_telemetry/zephyr_firmware/app'
+  board:
+    name: 'nucleo_c092rc'
+    path:
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/boards/st/nucleo_c092rc'
+    qualifiers: 'stm32c092xx'
+    revision: ''
+  devicetree:
+    bindings-dirs:
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/bindings'
+    files:
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/boards/st/nucleo_c092rc/nucleo_c092rc.dts'
+    include-dirs:
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/ambiq/dts'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/atmel/include'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/bouffalolab/include'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/bouffalolab/include/zephyr'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/gigadevice/include'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/microchip/include'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/microchip/dts'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/nuvoton/dts'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/nxp/dts'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/stm32/dts'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/modules/hal/ti/dts'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/include'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/include/zephyr'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/common'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/vendor'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/rx'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/x86'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/xtensa'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/sparc'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/riscv'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/posix'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/arm64'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/arm'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts/arc'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/dts'
+  kconfig:
+    files:
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/boards/st/nucleo_c092rc/nucleo_c092rc_defconfig'
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/app/prj.conf'
+    user-files:
+     - '/home/yeet/Projects/brage_telemetry/zephyr_firmware/app/prj.conf'
+  toolchain:
+    name: 'zephyr'
+    path: '/home/yeet/zephyr-sdk-0.17.4'
+  zephyr:
+    version: '4.2.99'
+    zephyr-base: '/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr'
+version: '0.1.0'
+west:
+  command: '/home/yeet/Projects/brage_telemetry/zephyr_firmware/.env/bin/west build -p always -b nucleo_c092rc'
+  topdir: '/home/yeet/Projects/brage_telemetry/zephyr_firmware'
+  version: '1.5.0'

@@ -1,0 +1,1 @@
+"mcuboot":"/home/yeet/Projects/brage_telemetry/zephyr_firmware/bootloader/mcuboot":"/home/yeet/Projects/brage_telemetry/zephyr_firmware/bootloader/mcuboot/boot/zephyr/sysbuild"

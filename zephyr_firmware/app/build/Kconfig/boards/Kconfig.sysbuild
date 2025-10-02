@@ -1,0 +1,2 @@
+# Load Sysbuild board Kconfig descriptions.
+osource "/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/boards/st/nucleo_c092rc/Kconfig.sysbuild"

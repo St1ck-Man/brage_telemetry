@@ -1,0 +1,5 @@
+west:
+  command: /home/yeet/Projects/brage_telemetry/zephyr_firmware/.env/bin/west build
+    -p always -b nucleo_c092rc
+  topdir: /home/yeet/Projects/brage_telemetry/zephyr_firmware
+  version: 1.5.0

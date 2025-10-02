@@ -1,0 +1,2 @@
+# Load Zephyr board defconfig descriptions.
+osource "/home/yeet/Projects/brage_telemetry/zephyr_firmware/zephyr/boards/st/nucleo_c092rc/Kconfig.defconfig"
