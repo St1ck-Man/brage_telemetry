@@ -1,5 +1,9 @@
 #include "pin_config.h"
 #include <RadioLib.h>
+#include "fdcan_wrapper.h"
+
+// CAN Configuration
+FDCAN_Wrapper can;
 
 // Global state variables
 volatile bool isTransmitting = false;
@@ -28,6 +32,15 @@ void handle_error(int state) {
     while (true) { delay(10); }
   }
 }
+void init_can() {
+  Serial.print(F("[CAN] Initializing ... "));
+
+  // Initialize CAN bus at 500kbps
+  can.begin();
+  can.setBaudRate(500000); // 500 kbps
+  Serial.println(F("success!"));
+}
+
 void init_radio()
 {
   /* initializes sx1280 instance and starts receiving */
@@ -38,7 +51,7 @@ void init_radio()
 
   radio.setPacketSentAction(setTxFlag);
   radio.setPacketReceivedAction(setRxFlag);
-  
+
   start_receive();
 } 
 
@@ -92,19 +105,19 @@ int start_transmit(uint8_t* packet, size_t length) {
     return state;
 }
 
-// Function to handle received packets
+// Function to handle received packets and forward to CAN
 int handle_received_packet(void) {
     if (!receivedFlag) {
         return RADIOLIB_ERR_NONE; // No packet received
     }
-    
+
     // Reset flag immediately
     receivedFlag = false;
-    
+
     // Read received data as byte array
     uint8_t byteArr[256]; // Adjust size as needed
     int numBytes = radio.getPacketLength();
-    
+
     // Validate packet length
     if (numBytes <= 0 || numBytes > sizeof(byteArr)) {
         Serial.print(F("[RX] Invalid packet length: "));
@@ -112,52 +125,79 @@ int handle_received_packet(void) {
         radio.startReceive(); // Resume listening
         return RADIOLIB_ERR_UNKNOWN;
     }
-    
+
     int state = radio.readData(byteArr, numBytes);
-    
+
     if (state == RADIOLIB_ERR_NONE) {
         // Packet received successfully
         Serial.println(F(""));
-        Serial.println(F("=== PACKET RECEIVED ==="));
-        Serial.print(F("[RX] Length: "));
+        Serial.println(F("=== LoRa PACKET RECEIVED ==="));
+        Serial.print(F("[LoRa RX] Length: "));
         Serial.print(numBytes);
         Serial.println(F(" bytes"));
-        
+
         // Print packet data in hex
-        Serial.print(F("[RX] Data: "));
+        Serial.print(F("[LoRa RX] Data: "));
         for (int i = 0; i < numBytes; i++) {
             if (byteArr[i] < 0x10) Serial.print("0");
             Serial.print(byteArr[i], HEX);
             Serial.print(" ");
         }
         Serial.println();
-        
+
         // Print signal quality
-        Serial.print(F("[RX] RSSI: "));
+        Serial.print(F("[LoRa RX] RSSI: "));
         Serial.print(radio.getRSSI());
         Serial.println(F(" dBm"));
-        
-        Serial.print(F("[RX] SNR: "));
+
+        Serial.print(F("[LoRa RX] SNR: "));
         Serial.print(radio.getSNR());
         Serial.println(F(" dB"));
-        
-        Serial.println(F("====================="));
+
+        // Check if this is a CAN message structure
+        if (numBytes == sizeof(CAN_message_t)) {
+            CAN_message_t* canMsg = (CAN_message_t*)byteArr;
+
+            // Validate CAN message
+            if (canMsg->data_length <= 8) {
+                Serial.println(F("[BRIDGE] Valid CAN message detected, forwarding to CAN bus..."));
+                Serial.print(F("[BRIDGE] CAN ID: 0x"));
+                Serial.print(canMsg->id, HEX);
+                Serial.print(F(" | Length: "));
+                Serial.println(canMsg->data_length);
+
+                // Forward to CAN bus
+                bool sent = can.write(canMsg->id, canMsg->data, canMsg->data_length);
+                if (sent) {
+                    Serial.println(F("[BRIDGE] Successfully forwarded to CAN bus"));
+                    digitalWrite(LED_RX, HIGH);
+                    delay(50);
+                    digitalWrite(LED_RX, LOW);
+                } else {
+                    Serial.println(F("[BRIDGE] Failed to forward to CAN bus"));
+                }
+            } else {
+                Serial.println(F("[BRIDGE] Invalid CAN data length, not forwarding"));
+            }
+        }
+
+        Serial.println(F("============================"));
         Serial.println(F(""));
-        
+
     } else if (state == RADIOLIB_ERR_CRC_MISMATCH) {
-        Serial.println(F("[RX] CRC error - corrupted packet"));
+        Serial.println(F("[LoRa RX] CRC error - corrupted packet"));
     } else {
-        Serial.print(F("[RX] Failed to read packet, code "));
+        Serial.print(F("[LoRa RX] Failed to read packet, code "));
         Serial.println(state);
     }
-    
+
     // Always resume listening after handling a packet
     int resumeState = radio.startReceive();
     if (resumeState != RADIOLIB_ERR_NONE) {
-        Serial.print(F("[RX] Failed to resume listening, code "));
+        Serial.print(F("[LoRa RX] Failed to resume listening, code "));
         Serial.println(resumeState);
     }
-    
+
     return state;
 }
 
@@ -192,92 +232,195 @@ void handle_transmission_complete(void) {
 
 void setup() {
     Serial.begin(115200);
-    
+    while (!Serial) { delay(10); } // Wait for serial connection
+
+    // Initialize LED pins
+    pinMode(LED_TX, OUTPUT);
+    pinMode(LED_RX, OUTPUT);
+    digitalWrite(LED_TX, LOW);
+    digitalWrite(LED_RX, LOW);
+
     // Initialize button pin
-    // pinMode(USER_BTN, INPUT_PULLUP);
-    
-    // Initialize RF switch pins (add these pin definitions to your constants)
-    pinMode(PA_RX_EN, OUTPUT);
-    pinMode(PA_TX_EN, OUTPUT);
-    pinMode(PA_EN, OUTPUT);
+    pinMode(USER_BTN, INPUT_PULLUP);
+
+    // Initialize RF switch pins
+    pinMode(RX_EN, OUTPUT);
+    pinMode(TX_EN, OUTPUT);
     digitalWrite(RX_EN, LOW);
     digitalWrite(TX_EN, LOW);
-    
+
+    // LED startup sequence
+    Serial.println(F(""));
+    Serial.println(F("=== SYSTEM STARTUP ==="));
+    digitalWrite(LED_TX, HIGH);
+    delay(200);
+    digitalWrite(LED_RX, HIGH);
+    delay(200);
+    digitalWrite(LED_TX, LOW);
+    digitalWrite(LED_RX, LOW);
+    delay(200);
+
+    // Initialize CAN bus
+    init_can();
+
     // Initialize radio
     init_radio();
-    
-    Serial.println(F("=== Radio System Ready ==="));
-    // Serial.println(F("Press USER_BTN to send a packet"));
-    Serial.println(F("Listening for incoming packets..."));
+
+    Serial.println(F(""));
+    Serial.println(F("╔════════════════════════════════════════════╗"));
+    Serial.println(F("║    CAN-LoRa Bidirectional Bridge Ready     ║"));
+    Serial.println(F("╚════════════════════════════════════════════╝"));
+    Serial.println(F(""));
+    Serial.println(F("Functionality:"));
+    Serial.println(F("  → CAN messages automatically forwarded to LoRa"));
+    Serial.println(F("  → LoRa messages automatically forwarded to CAN"));
+    Serial.println(F("  → Press USER_BTN to send test CAN message"));
+    Serial.println(F(""));
+    Serial.println(F("LED Indicators:"));
+    Serial.println(F("  → GREEN (TX): LoRa transmission"));
+    Serial.println(F("  → BLUE  (RX): CAN/LoRa reception"));
+    Serial.println(F(""));
+    Serial.println(F("Ready for testing..."));
     Serial.println(F(""));
 }
 
 void loop() {
+    // Handle CAN messages (receive and forward over LoRa)
+    handle_can_messages();
+
     // Handle radio operations
     handle_received_packet();
     handle_transmission_complete();
-    
-    send_test_packet();
-    // Handle user input
-    // handle_button_press();
-    
-    // Add small delay to prevent overwhelming the CPU
-    delay(5000); // wait for 5 seconds
+
+    // Handle button press for manual testing
+    handle_button_press();
+
+    // Small delay to prevent overwhelming the CPU
+    delay(10);
 }
 
 
-/* Just for testing with nucleo */
+/* Button handler for testing - sends CAN messages when pressed */
 void handle_button_press() {
     // Read the button state
     bool reading = digitalRead(USER_BTN);
-    
+
     // Check if button state changed (for debouncing)
     if (reading != lastButtonState) {
         lastDebounceTime = millis();
     }
-    
+
     // If enough time has passed since last change
     if ((millis() - lastDebounceTime) > debounceDelay) {
         // If button state has actually changed
         if (reading != currentButtonState) {
             currentButtonState = reading;
-            
+
             // Button was pressed (HIGH to LOW transition for active LOW button)
             if (currentButtonState == LOW) {
-                send_test_packet();
+                Serial.println(F(""));
+                Serial.println(F("*** BUTTON PRESSED - Sending Test CAN Message ***"));
+
+                // Create test data with incrementing pattern + packet counter
+                uint8_t testData[8];
+                testData[0] = (packetCounter >> 8) & 0xFF;  // Counter high byte
+                testData[1] = packetCounter & 0xFF;         // Counter low byte
+                testData[2] = 0xAA;
+                testData[3] = 0xBB;
+                testData[4] = 0xCC;
+                testData[5] = 0xDD;
+                testData[6] = 0xEE;
+                testData[7] = 0xFF;
+
+                // Send on CAN bus with a unique ID
+                send_can_message(0x100 + (packetCounter % 16), 8, testData);
+
+                Serial.println(F(""));
             }
         }
     }
-    
+
     lastButtonState = reading;
 }
 
-typedef struct {
-  uint16_t id; // 11-bit identifier (0-0x7FF)
-  uint8_t data_length; // length field 
-  uint8_t data[8]; // 8 byte data payload
-} CAN_message;
+// Function to receive CAN messages and forward them over LoRa
+void handle_can_messages() {
+    CAN_message_t msg;
 
-void send_test_packet(uint16_t id, uint8_t data_length, uint8_t *data) {
-    // Create a test CAN message to be sent over LoRa 
-    CAN_message msg;
+    // Check if there's a CAN message available
+    if (can.available() && can.read(msg)) {
+        Serial.println(F(""));
+        Serial.println(F("=== CAN MESSAGE RECEIVED ==="));
+        Serial.print(F("[CAN RX] ID: 0x"));
+        Serial.print(msg.id, HEX);
+        Serial.print(F(" | Length: "));
+        Serial.println(msg.data_length);
 
-    msg.id = id;
-    msg.data_length = data_length;
-    memset(msg.data, 0, 8); // initialize all bytes to 0 
-    if (data != NULL) {
-      memcpy(msg.data, data, msg.data_length);
+        Serial.print(F("[CAN RX] Data: "));
+        for (int i = 0; i < msg.data_length; i++) {
+            if (msg.data[i] < 0x10) Serial.print("0");
+            Serial.print(msg.data[i], HEX);
+            Serial.print(" ");
+        }
+        Serial.println();
+        Serial.println(F("==========================="));
+        Serial.println(F(""));
+
+        // Forward CAN message over LoRa
+        Serial.println(F("[BRIDGE] Forwarding CAN message over LoRa..."));
+
+        // LED indicator for CAN RX
+        digitalWrite(LED_RX, HIGH);
+
+        int state = start_transmit((uint8_t*)&msg, sizeof(msg));
+        if (state == RADIOLIB_ERR_NONE) {
+            packetCounter++;
+            digitalWrite(LED_TX, HIGH);
+            delay(50);
+            digitalWrite(LED_TX, LOW);
+        } else {
+            Serial.print(F("[BRIDGE] Failed to forward CAN message, code "));
+            Serial.println(state);
+        }
+
+        digitalWrite(LED_RX, LOW);
     }
-    
-    Serial.println("Sending data: ");    
-    Serial.print("\tID: ");
-    Serial.println(msg->id);
-    
-    int state = start_transmit(packet, sizeof(packet));
-    if (state == RADIOLIB_ERR_NONE) {
-        packetCounter++; // Only increment if transmission started successfully
+}
+
+// Function to send CAN message directly on CAN bus
+void send_can_message(uint16_t id, uint8_t data_length, uint8_t *data) {
+    if (data_length > 8) {
+        Serial.println(F("[CAN] Error: Data length exceeds 8 bytes"));
+        return;
+    }
+
+    Serial.println(F(""));
+    Serial.print(F("[CAN] Sending message | ID: 0x"));
+    Serial.print(id, HEX);
+    Serial.print(F(" | Length: "));
+    Serial.println(data_length);
+
+    Serial.print(F("[CAN] Data: "));
+    for (int i = 0; i < data_length; i++) {
+        if (data[i] < 0x10) Serial.print("0");
+        Serial.print(data[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
+
+    bool sent = can.write(id, data, data_length);
+    if (sent) {
+        Serial.println(F("[CAN] Message sent successfully"));
     } else {
-        Serial.print(F("[USER] Failed to start transmission, code "));
-        Serial.println(state);
+        Serial.println(F("[CAN] Failed to send message"));
     }
+    Serial.println(F(""));
+}
+
+void send_test_packet() {
+    // Create a test CAN message
+    uint8_t testData[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+
+    Serial.println(F("[TEST] Sending test CAN message..."));
+    send_can_message(0x123, 8, testData);
 }
