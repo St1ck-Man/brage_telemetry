@@ -5,22 +5,19 @@
 #define LED_TX LED_GREEN // Use built-in LED or define specific pin like PA5
 #define LED_RX LED_BLUE
 
-/*User Button for testing*/
-// #define USER_BTN PC13 // Built-in button on Nucleo boards
-
 /*sx1280 control pins*/ // bottom right on the board
 #define SX_DIO1 8       // PA9
 #define SX_RESET 9      // PB3
 #define SX_CS 10        // SPI CS / PA15
-#define SX_BUSY 7       // not connected, LAMBDA80 doesn't have BUSY pin
+#define SX_BUSY 7   
 
 /*RF control*/
 #define TX_EN 0 // PB7
 #define RX_EN 1 //
 
-/*CAN pins - using FDCAN on STM32*/
-#define CAN_RX PA11
-#define CAN_TX PA12
+/*CAN pins - nucleo*/
+#define CAN_RX PC2
+#define CAN_TX PC3
 
 // /* Status LEDs */
 // #define LED_TX PB12
