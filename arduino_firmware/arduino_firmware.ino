@@ -264,25 +264,29 @@ void handle_button_press() {
     // Read the button state
     bool reading = digitalRead(USER_BTN);
 
-    if (reading == HIGH) {
-        Serial.println(F(""));
-        Serial.println(F("*** BUTTON PRESSED - Sending Test CAN Message ***"));
+    if (reading == LOW) {  // Button pressed (pulled LOW)
+        // Add debouncing
+        if ((millis() - lastDebounceTime) > debounceDelay) {
+            lastDebounceTime = millis();
+            
+            Serial.println(F(""));
+            Serial.println(F("*** BUTTON PRESSED - Sending Test CAN Message ***"));
 
-        // Create test data with incrementing pattern + packet counter
-        uint8_t testData[8];
-        testData[0] = (packetCounter >> 8) & 0xFF;  // Counter high byte
-        testData[1] = packetCounter & 0xFF;         // Counter low byte
-        testData[2] = 0xAA;
-        testData[3] = 0xBB;
-        testData[4] = 0xCC;
-        testData[5] = 0xDD;
-        testData[6] = 0xEE;
-        testData[7] = 0xFF;
+            // Create test data with incrementing pattern + packet counter
+            uint8_t testData[8];
+            testData[0] = (packetCounter >> 8) & 0xFF;
+            testData[1] = packetCounter & 0xFF;
+            testData[2] = 0xAA;
+            testData[3] = 0xBB;
+            testData[4] = 0xCC;
+            testData[5] = 0xDD;
+            testData[6] = 0xEE;
+            testData[7] = 0xFF;
 
-        // Send on CAN bus with a unique ID
-        send_can_message(0x100 + (packetCounter % 16), 8, testData);
-
-        Serial.println(F(""));
+            send_can_message(0x100 + (packetCounter % 16), 8, testData);
+            
+            Serial.println(F(""));
+        }
     }
 }
 
