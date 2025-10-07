@@ -1,0 +1,173 @@
+/*
+ * STM32U575CG Board Overlay
+ * Telemetry system peripheral configuration
+ */
+
+/ {
+	aliases {
+		lora0 = &lora_sx128x;
+		led-tx = &led_tx;
+		led-rx = &led_rx;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led_tx: led_tx {
+			gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
+			label = "TX LED";
+		};
+		led_rx: led_rx {
+			gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
+			label = "RX LED";
+		};
+	};
+
+	sx128x_gpios {
+		compatible = "gpio-keys";
+		sx128x_cs: sx128x_cs {
+			gpios = <&gpiob 0 GPIO_ACTIVE_LOW>;
+			label = "SX128x CS";
+		};
+		sx128x_reset: sx128x_reset {
+			gpios = <&gpiob 6 GPIO_ACTIVE_LOW>;
+			label = "SX128x RESET";
+		};
+		sx128x_busy: sx128x_busy {
+			gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+			label = "SX128x BUSY";
+		};
+		sx128x_dio1: sx128x_dio1 {
+			gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+			label = "SX128x DIO1";
+		};
+		sx128x_dio2: sx128x_dio2 {
+			gpios = <&gpiob 4 GPIO_ACTIVE_HIGH>;
+			label = "SX128x DIO2";
+		};
+		sx128x_dio3: sx128x_dio3 {
+			gpios = <&gpiob 5 GPIO_ACTIVE_HIGH>;
+			label = "SX128x DIO3";
+		};
+	};
+
+	pa_control {
+		compatible = "gpio-keys";
+		pa_en: pa_en {
+			gpios = <&gpioc 13 GPIO_ACTIVE_HIGH>;
+			label = "PA Enable";
+		};
+		pa_tx_en: pa_tx_en {
+			gpios = <&gpioc 14 GPIO_ACTIVE_HIGH>;
+			label = "PA TX Enable";
+		};
+		pa_rx_en: pa_rx_en {
+			gpios = <&gpioc 15 GPIO_ACTIVE_HIGH>;
+			label = "PA RX Enable";
+		};
+		pa_vref_en: pa_vref_en {
+			gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;
+			label = "PA VREF Enable";
+		};
+	};
+
+	lora_sx128x: sx128x@0 {
+		compatible = "semtech,sx1280";
+		reset-gpios = <&gpiob 6 GPIO_ACTIVE_LOW>;
+		busy-gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+		dio1-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+		dio2-gpios = <&gpiob 4 GPIO_ACTIVE_HIGH>;
+		dio3-gpios = <&gpiob 5 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+/* Clock Configuration */
+&clk_hse {
+	clock-frequency = <DT_FREQ_M(48)>;
+	status = "okay";
+};
+
+&clk_hsi48 {
+	status = "okay";
+};
+
+&pll1 {
+	div-m = <3>;
+	mul-n = <10>;
+	div-p = <1>;
+	div-q = <2>;
+	div-r = <2>;
+	clocks = <&clk_hse>;
+	status = "okay";
+};
+
+&rcc {
+	clocks = <&pll1>;
+	clock-frequency = <DT_FREQ_M(160)>;
+	ahb-prescaler = <1>;
+	apb1-prescaler = <1>;
+	apb2-prescaler = <1>;
+	apb3-prescaler = <1>;
+};
+
+/* SPI1 Configuration */
+&spi1 {
+	pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpiob 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+	clock-frequency = <DT_FREQ_M(10)>;
+
+	sx128x@0 {
+		compatible = "semtech,sx1280";
+		reg = <0>;
+		spi-max-frequency = <DT_FREQ_M(10)>;
+		reset-gpios = <&gpiob 6 GPIO_ACTIVE_LOW>;
+		busy-gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+		dio1-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+		dio2-gpios = <&gpiob 4 GPIO_ACTIVE_HIGH>;
+		dio3-gpios = <&gpiob 5 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+/* FDCAN1 Configuration */
+&fdcan1 {
+	pinctrl-0 = <&fdcan1_rx_pb8 &fdcan1_tx_pb9>;
+	pinctrl-names = "default";
+	status = "okay";
+	bus-speed = <500000>;
+	bus-speed-data = <1000000>;
+	sjw = <1>;
+	sjw-data = <1>;
+	sample-point = <875>;
+	sample-point-data = <875>;
+};
+
+/* USART2 Configuration with DMA */
+&usart2 {
+	pinctrl-0 = <&usart2_tx_pa2 &usart2_rx_pa3 &usart2_rts_pa0 &usart2_cts_pa1>;
+	pinctrl-names = "default";
+	current-speed = <115200>;
+	hw-flow-control;
+	status = "okay";
+	dmas = <&gpdma1 0 0 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+	       <&gpdma1 1 0 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+	dma-names = "tx", "rx";
+};
+
+/* DMA Configuration */
+&gpdma1 {
+	status = "okay";
+};
+
+/* GPIO Port Configuration */
+&gpioa {
+	status = "okay";
+};
+
+&gpiob {
+	status = "okay";
+};
+
+&gpioc {
+	status = "okay";
+};
