@@ -1,6 +1,6 @@
-use embassy_stm32::can::frame::{Header, FdFrame};
+use embassy_stm32::can::frame::{FdFrame, Header};
 
-use crate::{CAN_IN, CAN_OUT, protocol};
+use crate::{protocol, CAN_IN, CAN_OUT};
 
 #[embassy_executor::task]
 pub async fn can_reader_task(can_rx: embassy_stm32::can::BufferedFdCanReceiver) -> ! {
@@ -12,16 +12,12 @@ pub async fn can_reader_task(can_rx: embassy_stm32::can::BufferedFdCanReceiver) 
         } else {
             panic!("Does not support extended IDs")
         };
-        if id > 255 {
-            continue;
-        }
-
         let data = res.frame.data();
 
         let mut msg = protocol::CanMsg {
             id: id,
             length: data.len() as u8,
-            data: [0; 64]
+            data: [0; 64],
         };
         msg.data[0..data.len()].copy_from_slice(&data[0..data.len()]);
         CAN_IN.send(msg).await;
